@@ -6,22 +6,42 @@ using UnityEngine.InputSystem;
 public class MainManager : MonoBehaviour
 {
     public Brick BrickPrefab;
+    public MegaBrick MegaBrickPrefab;
     public int LineCount = 6;
     public Rigidbody Ball;
 
     public Text ScoreText;
-    public GameObject GameOverText;
-    
+
     private bool m_Started = false;
     private int m_Points;
-    
-    // Start is called before the first frame update
-    void Start()
+
+    public int score
+    {
+        get { return m_Points; }
+        private set
+        {
+            m_Points = Mathf.Max(0, value);
+            ScoreText.text = $"Score : {m_Points}";
+        }
+    }
+
+    // ENCAPSULATION
+    public int bestScore
+    {
+        get { return PlayerPrefs.GetInt("BestScore", 0); }
+        private set { PlayerPrefs.SetInt("BestScore", value); }
+    }
+
+    private void SpawnBricks()
     {
         const float step = 0.6f;
         int perLine = Mathf.FloorToInt(4.0f / step);
-        
-        int[] pointCountArray = new [] {1,1,2,2,5,5};
+
+        var megaPosition = new Vector3(0, 2.5f + LineCount * 0.3f, 0);
+        var megaBrick = Instantiate(MegaBrickPrefab, megaPosition, Quaternion.identity);
+        megaBrick.onDestroyed.AddListener(AddPoint);
+
+        int[] pointCountArray = new[] { 1, 1, 2, 2, 5, 5 };
         for (int i = 0; i < LineCount; ++i)
         {
             for (int x = 0; x < perLine; ++x)
@@ -34,40 +54,41 @@ public class MainManager : MonoBehaviour
         }
     }
 
+    private void LaunchBall()
+    {
+        float randomDirection = Random.Range(-1.0f, 1.0f);
+        Vector3 forceDir = new Vector3(randomDirection, 1, 0).normalized;
+
+        Ball.transform.SetParent(null);
+        Ball.AddForce(forceDir * 2.0f, ForceMode.VelocityChange);
+    }
+
+    void Start()
+    {
+        SpawnBricks(); // ABSTRACTION
+    }
+
     private void Update()
     {
-        if (!m_Started)
+        if (!m_Started && Keyboard.current.spaceKey.wasPressedThisFrame)
         {
-            if (Keyboard.current.spaceKey.wasPressedThisFrame)
-            {
-                m_Started = true;
-                float randomDirection = Random.Range(-1.0f, 1.0f);
-                Vector3 forceDir = new Vector3(randomDirection, 1, 0);
-                forceDir.Normalize();
-
-                Ball.transform.SetParent(null);
-                Ball.AddForce(forceDir * 2.0f, ForceMode.VelocityChange);
-            }
+            m_Started = true;
+            LaunchBall(); // ABSTRACTION
         }
     }
 
     void AddPoint(int point)
     {
-        m_Points += point;
-        ScoreText.text = $"Score : {m_Points}";
+        score += point;
     }
 
     public void GameOver()
     {
-        int best = PlayerPrefs.GetInt("BestScore", 0);
-
-        if (m_Points > best)
+        if (score > bestScore)
         {
-            PlayerPrefs.SetInt("BestScore", m_Points);
+            bestScore = score;
         }
 
         SceneManager.LoadScene("gameover");
     }
-
-    
 }
